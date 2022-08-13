@@ -10,14 +10,16 @@ def mailservice():
     mail_text = f"{ip} is {status}!"
     subject = "Alert from Python-Ping-Monitoring"
 
-    MAIL_FROM = smtpdata.mailadr                #mailaddress saved in smtpdata.py
-    RCPT_TO = smtpdata.toadr                    #recipient mailaddress saved in smtpdata.py
-    DATA = "From:%s\nTo:%s\nSubject:%s\n\n%s" % (MAIL_FROM, RCPT_TO, subject, mail_text)
+    mailfrom = smtpdata.mailadr                #mailaddress saved in smtpdata.py
+    mailto = smtpdata.toadr                    #recipient mailaddress saved in smtpdata.py
+    mailcontent = "From:%s\nTo:%s\nSubject:%s\n\n%s" % (mailfrom, mailto, subject, mail_text)
     
     server = smtplib.SMTP(smtpdata.smtpserver,smtpdata.smtpport)    #smtp server and port saved in smtpdata.py
+    server.ehlo()
     server.starttls()
+    server.ehlo()
     server.login(user, pwd)
-    server.sendmail(MAIL_FROM, RCPT_TO,DATA)
+    server.sendmail(mailfrom, mailto, mailcontent)
     server.quit()
 
 
