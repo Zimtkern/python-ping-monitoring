@@ -1,7 +1,7 @@
-import os
 import time
 import smtplib
 import smtpdata
+from ping3 import ping
 
 
 def mailservice():
@@ -13,7 +13,7 @@ def mailservice():
     mailfrom = smtpdata.mailadr                #mailaddress saved in smtpdata.py
     mailto = smtpdata.toadr                    #recipient mailaddress saved in smtpdata.py
     mailcontent = "From:%s\nTo:%s\nSubject:%s\n\n%s" % (mailfrom, mailto, subject, mail_text)
-
+    
     server = smtplib.SMTP(smtpdata.smtpserver,smtpdata.smtpport)    #smtp server and port saved in smtpdata.py
     server.ehlo()
     server.starttls()
@@ -24,15 +24,15 @@ def mailservice():
 
 
 def pingscript():
-    global received
+    global response
     global status
-    received = os.system(f"ping -c 2 {ip} > /dev/null")
-    if received == 0:
-        #print(f"{ip} is up!")
-        status = "up"
-    else:
+    response = ping(ip)
+    if response == False:
         #print(f"{ip} is down!")
         status = "down"
+    else:
+        #print(f"{ip} is up!")
+        status = "up"
 
 
 def readcache():                                #scan for ip in cachefile
@@ -49,8 +49,8 @@ def writecache():                               #write ip to cachefile
     file = open("cache", "a")
     print(file.write(f"\n{ip}"))
     file.close()
-
-
+ 
+    
 def clearcache():                               #clean ip from cachefile
     with open("cache", "r") as f:
         lines = f.readlines()
@@ -60,33 +60,33 @@ def clearcache():                               #clean ip from cachefile
                 f.write(line)
 
 
-with open("hostlist") as file:
+with open("hostlist") as file:        
     hostlist = file.read()
     hostlist = hostlist.splitlines()
 
 print(f"start scanning hosts: {hostlist}\n")
 
 
-timer = 1200
+timer = 3600                                    
 
 while(True):
     for ip in hostlist:
         pingscript()
         time.sleep(1)
-        if(received != 0):
+        if(response == False):
             readcache()
             print(f"\n{ip} is down!")
             if(incache == False):
-                writecache()
+                writecache()                            
                 mailservice()
-                print("sent email!")
-                timer = 120
-
-        elif(received == 0):
+                print(f"\n{ip} is down!\nsent email!\n")
+                timer = 300
+        
+        elif(response != False):
             readcache()
             if(incache == True):
-                clearcache()
-                print(f"\n{ip} is up!\nsent email!")
+                clearcache()  
+                print(f"\n{ip} is up!\nsent email!\n")                          
                 mailservice()
-                timer = 1200
+                timer = 3600
     time.sleep(timer)
