@@ -1,3 +1,5 @@
+#attention: please adjust the smtpdata.py and hostlistfile before executing
+
 import os
 import time
 import smtplib
@@ -5,16 +7,16 @@ import smtpdata
 
 
 def mailservice():
-    user = smtpdata.usr		                    #username saved in smtpdata.py
-    pwd = smtpdata.pwd		                    #password saved in smtpdata.py
+    user = smtpdata.usr		                                                                    #username saved in smtpdata.py
+    pwd = smtpdata.pwd		                                                                    #password saved in smtpdata.py
     mail_text = f"{ip} is {status}!"
     subject = "Alert from Python-Ping-Monitoring"
 
-    mailfrom = smtpdata.mailadr                #mailaddress saved in smtpdata.py
-    mailto = smtpdata.toadr                    #recipient mailaddress saved in smtpdata.py
+    mailfrom = smtpdata.mailadr                                                                 #mailaddress saved in smtpdata.py
+    mailto = smtpdata.toadr                                                                     #recipient mailaddress saved in smtpdata.py
     mailcontent = "From:%s\nTo:%s\nSubject:%s\n\n%s" % (mailfrom, mailto, subject, mail_text)
 
-    server = smtplib.SMTP(smtpdata.smtpserver,smtpdata.smtpport)    #smtp server and port saved in smtpdata.py
+    server = smtplib.SMTP(smtpdata.smtpserver,smtpdata.smtpport)                                #smtp server and port saved in smtpdata.py
     server.ehlo()
     server.starttls()
     server.ehlo()
@@ -38,8 +40,10 @@ def pingscript():
 def readcache():                                #scan for ip in cachefile
     with open("cache") as f:
         global incache
+        global timecache
         if ip in f.read():
             incache = True
+            timecache = True
         else:
             incache = False
     file.close()
@@ -60,6 +64,18 @@ def clearcache():                               #clean ip from cachefile
                 f.write(line)
 
 
+def preparelist():                              #delete empty line from cachefile and hostlistfile
+    lists = ["hostlist", "cache"]
+    for list in lists:
+        output = ""
+        with open(list) as f:
+            for line in f:
+                if not line.isspace():
+                    output+=line
+        f= open(list,"w")
+        f.write(output)
+
+
 with open("hostlist") as file:
     hostlist = file.read()
     hostlist = hostlist.splitlines()
@@ -68,9 +84,11 @@ print(f"start scanning hosts: {hostlist}\n")
 
 
 timer = 1200
+timecache = ""
 
 while(True):
     for ip in hostlist:
+        preparelist()
         pingscript()
         time.sleep(1)
         if(received != 0):
@@ -80,7 +98,11 @@ while(True):
                 writecache()
                 mailservice()
                 print("sent email!")
-                timer = 120
+                for ip in hostlist:
+                    readcache()
+                    if(timecache == True):
+                        timer = 120
+                        timecache = False
 
         elif(received == 0):
             readcache()

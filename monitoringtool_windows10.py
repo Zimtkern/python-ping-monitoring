@@ -1,3 +1,5 @@
+#attention: please adjust the smtpdata.py and hostlistfile before executing
+
 import time
 import smtplib
 import smtpdata
@@ -5,16 +7,16 @@ from ping3 import ping
 
 
 def mailservice():
-    user = smtpdata.usr		                    #username saved in smtpdata.py
-    pwd = smtpdata.pwd		                    #password saved in smtpdata.py
+    user = smtpdata.usr		                                                                    #username saved in smtpdata.py
+    pwd = smtpdata.pwd		                                                                    #password saved in smtpdata.py
     mail_text = f"{ip} is {status}!"
     subject = "Alert from Python-Ping-Monitoring"
 
-    mailfrom = smtpdata.mailadr                #mailaddress saved in smtpdata.py
-    mailto = smtpdata.toadr                    #recipient mailaddress saved in smtpdata.py
+    mailfrom = smtpdata.mailadr                                                                 #mailaddress saved in smtpdata.py
+    mailto = smtpdata.toadr                                                                     #recipient mailaddress saved in smtpdata.py
     mailcontent = "From:%s\nTo:%s\nSubject:%s\n\n%s" % (mailfrom, mailto, subject, mail_text)
-    
-    server = smtplib.SMTP(smtpdata.smtpserver,smtpdata.smtpport)    #smtp server and port saved in smtpdata.py
+
+    server = smtplib.SMTP(smtpdata.smtpserver,smtpdata.smtpport)                                #smtp server and port saved in smtpdata.py
     server.ehlo()
     server.starttls()
     server.ehlo()
@@ -30,6 +32,7 @@ def pingscript():
     if response == False:
         #print(f"{ip} is down!")
         status = "down"
+        timecache = True
     else:
         #print(f"{ip} is up!")
         status = "up"
@@ -38,6 +41,7 @@ def pingscript():
 def readcache():                                #scan for ip in cachefile
     with open("cache") as f:
         global incache
+        global timecache
         if ip in f.read():
             incache = True
         else:
@@ -60,6 +64,18 @@ def clearcache():                               #clean ip from cachefile
                 f.write(line)
 
 
+def preparelist():                              #delete empty line from cachefile and hostlistfile
+    lists = ["hostlist", "cache"]
+    for list in lists:
+        output = ""
+        with open(list) as f:
+            for line in f:
+                if not line.isspace():
+                    output+=line
+        f= open(list,"w")
+        f.write(output)
+
+
 with open("hostlist") as file:        
     hostlist = file.read()
     hostlist = hostlist.splitlines()
@@ -67,10 +83,11 @@ with open("hostlist") as file:
 print(f"start scanning hosts: {hostlist}\n")
 
 
-timer = 3600                                    
+timer = 1200                                  
 
 while(True):
     for ip in hostlist:
+        preparelist()
         pingscript()
         time.sleep(1)
         if(response == False):
@@ -79,14 +96,18 @@ while(True):
             if(incache == False):
                 writecache()                            
                 mailservice()
-                print(f"\n{ip} is down!\nsent email!\n")
-                timer = 300
+                print("sent email!")
+                for ip in hostlist:
+                    readcache()
+                    if(timecache == True):
+                        timer = 120
+                        timecache = False
         
         elif(response != False):
             readcache()
             if(incache == True):
                 clearcache()  
-                print(f"\n{ip} is up!\nsent email!\n")                          
+                print(f"\n{ip} is up!\nsent email!")                          
                 mailservice()
-                timer = 3600
+                timer = 1200
     time.sleep(timer)
