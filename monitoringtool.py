@@ -1,5 +1,6 @@
 #attention: please adjust the smtpdata.py and hostlistfile before executing
 
+from logging.handlers import TimedRotatingFileHandler
 import os
 import time
 import smtplib
@@ -28,7 +29,7 @@ def mailservice():
 def pingscript():
     global received
     global status
-    received = os.system(f"ping -c 2 {ip} > /dev/null")
+    received = os.system(f"ping -c 4 {ip} > /dev/null")
     if received == 0:
         #print(f"{ip} is up!")
         status = "up"
@@ -38,12 +39,11 @@ def pingscript():
 
 
 def readcache():                                #scan for ip in cachefile
-    with open("cache") as f:
+    with open("cache") as file:
         global incache
         global timecache
-        if ip in f.read():
+        if ip in file.read():
             incache = True
-            timecache = True
         else:
             incache = False
     file.close()
@@ -56,53 +56,55 @@ def writecache():                               #write ip to cachefile
 
 
 def clearcache():                               #clean ip from cachefile
-    with open("cache", "r") as f:
-        lines = f.readlines()
-    with open("cache", "w") as f:
+    with open("cache", "r") as file:
+        lines = file.readlines()
+    with open("cache", "w") as file:
         for line in lines:
             if line.strip("\n") != ip:
-                f.write(line)
+                file.write(line)
 
 
 def preparelist():                              #delete empty line from cachefile and hostlistfile
     lists = ["hostlist", "cache"]
     for list in lists:
         output = ""
-        with open(list) as f:
-            for line in f:
+        with open(list) as file:
+            for line in file:
                 if not line.isspace():
                     output+=line
-        f= open(list,"w")
-        f.write(output)
+        file= open(list,"w")
+        file.write(output)
 
 
-with open("hostlist") as file:
-    hostlist = file.read()
-    hostlist = hostlist.splitlines()
+def readhostlist():
+    global hostlist
+    with open("hostlist") as file:
+        hostlist = file.read()
+        hostlist = hostlist.splitlines()
 
+readhostlist()
 print(f"start scanning hosts: {hostlist}\n")
 
 
-timer = 1200
-timecache = ""
+tup = 1200                                      #timer for host status up
+tdown = 120                                     #timer for host status down
+
+timer = tup
 
 while(True):
+    readhostlist()
     for ip in hostlist:
         preparelist()
         pingscript()
-        time.sleep(1)
         if(received != 0):
             readcache()
             print(f"\n{ip} is down!")
             if(incache == False):
                 writecache()
                 mailservice()
+                time.sleep(1)
                 print("sent email!")
-                for ip in hostlist:
-                    readcache()
-                    if(timecache == True):
-                        timer = 120
-                        timecache = False
+                timer = tdown
 
         elif(received == 0):
             readcache()
@@ -110,5 +112,10 @@ while(True):
                 clearcache()
                 print(f"\n{ip} is up!\nsent email!")
                 mailservice()
-                timer = 1200
+                time.sleep(1)
+                timer = tup
+                for ip in hostlist:
+                    readcache()
+                    if(incache == True):
+                        timer = tdown
     time.sleep(timer)

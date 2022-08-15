@@ -39,10 +39,10 @@ def pingscript():
 
 
 def readcache():                                #scan for ip in cachefile
-    with open("cache") as f:
+    with open("cache") as file:
         global incache
         global timecache
-        if ip in f.read():
+        if ip in file.read():
             incache = True
         else:
             incache = False
@@ -53,61 +53,69 @@ def writecache():                               #write ip to cachefile
     file = open("cache", "a")
     print(file.write(f"\n{ip}"))
     file.close()
- 
-    
-def clearcache():                               #clean ip from cachefile
-    with open("cache", "r") as f:
-        lines = f.readlines()
-    with open("cache", "w") as f:
+
+
+def clearcache():                               #clean ip from cachefilemonitoringtool_windows10.py
+    with open("cache", "r") as file:
+        lines = file.readlines()
+    with open("cache", "w") as file:
         for line in lines:
             if line.strip("\n") != ip:
-                f.write(line)
+                file.write(line)
 
 
 def preparelist():                              #delete empty line from cachefile and hostlistfile
     lists = ["hostlist", "cache"]
     for list in lists:
         output = ""
-        with open(list) as f:
-            for line in f:
+        with open(list) as file:
+            for line in file:
                 if not line.isspace():
                     output+=line
-        f= open(list,"w")
-        f.write(output)
+        file= open(list,"w")
+        file.write(output)
 
 
-with open("hostlist") as file:        
-    hostlist = file.read()
-    hostlist = hostlist.splitlines()
+def readhostlist():
+    global hostlist
+    with open("hostlist") as file:
+        hostlist = file.read()
+        hostlist = hostlist.splitlines()
 
+readhostlist()
 print(f"start scanning hosts: {hostlist}\n")
 
 
-timer = 1200                                  
+tup = 1200                                      #timer for host status up
+tdown = 120                                     #timer for host status down
+
+timer = tup
 
 while(True):
+    readhostlist()
     for ip in hostlist:
         preparelist()
         pingscript()
-        time.sleep(1)
         if(response == False):
             readcache()
             print(f"\n{ip} is down!")
             if(incache == False):
-                writecache()                            
+                writecache()
                 mailservice()
+                time.sleep(1)
                 print("sent email!")
-                for ip in hostlist:
-                    readcache()
-                    if(timecache == True):
-                        timer = 120
-                        timecache = False
+                timer = tdown
         
         elif(response != False):
             readcache()
             if(incache == True):
-                clearcache()  
-                print(f"\n{ip} is up!\nsent email!")                          
+                clearcache()
+                print(f"\n{ip} is up!\nsent email!")
                 mailservice()
-                timer = 1200
+                time.sleep(1)
+                timer = tup
+                for ip in hostlist:
+                    readcache()
+                    if(incache == True):
+                        timer = tdown
     time.sleep(timer)
